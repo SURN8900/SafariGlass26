@@ -1,0 +1,53 @@
+
+name: Build Safari Glass 26
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get project files
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract project
+        id: locate
+        run: |
+          mkdir project
+          unzip -q SafariGlass26-source.zip -d project
+          ROOT="$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit | xargs -r dirname)"
+          if [ -z "$ROOT" ]; then
+            echo "Could not find settings.gradle"
+            exit 1
+          fi
+          echo "project_dir=$ROOT" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK
+        run: gradle -p "${{ steps.locate.outputs.project_dir }}" assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Safari-Glass-26-APK
+          path: ${{ steps.locate.outputs.project_dir }}/app/build/outputs/apk/debug/*.apk
+          
