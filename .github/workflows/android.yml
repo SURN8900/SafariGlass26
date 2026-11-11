@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -45,6 +45,22 @@ jobs:
           fi
           echo "project_dir=$ROOT" >> "$GITHUB_OUTPUT"
 
+      - name: Fix Java and Kotlin compatibility
+        run: |
+          GRADLE_FILE="${{ steps.locate.outputs.project_dir }}/app/build.gradle"
+          if [ ! -f "$GRADLE_FILE" ]; then
+            echo "Could not find app/build.gradle"
+            exit 1
+          fi
+          cat >> "$GRADLE_FILE" <<'EOF'
+
+          tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+              kotlinOptions {
+                  jvmTarget = "1.8"
+              }
+          }
+          EOF
+
       - name: Build APK
         run: gradle -p "${{ steps.locate.outputs.project_dir }}" assembleDebug
 
@@ -53,4 +69,5 @@ jobs:
         with:
           name: Safari-Glass-26-APK
           path: ${{ steps.locate.outputs.project_dir }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
           
